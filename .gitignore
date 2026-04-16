@@ -1,0 +1,27 @@
+# Virtual environment
+venv/
+
+# Config
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Streamlit config
+.streamlit/
+
+# Embeddings & biometric data (IMPORTANT)
+Embeddings/
+IrisEmbeddings/
+iris_database.pkl
+
+# Large datasets - do not upload
+CASIA1/
+Dataset/
+
+# OS files
+.DS_Store
+
+# Test data (optional)
+test/

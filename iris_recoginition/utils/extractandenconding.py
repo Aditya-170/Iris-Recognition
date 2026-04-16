@@ -1,5 +1,5 @@
 from os import listdir
-from utils.imgutils import segment, normalize
+from .imgutils import segment, normalize
 from cv2 import imread
 from multiprocessing import Pool, cpu_count
 from itertools import repeat
@@ -9,13 +9,11 @@ import scipy.io as sio
 import os
 import warnings
 warnings.filterwarnings("ignore")
-import logging
-logging.basicConfig(level=logging.DEBUG)
 
 ##########################################################################
 #  Function which generate the iris template using in the matching
 ##########################################################################
-DATABASE_PATH = './embeddings/'
+DATABASE_PATH = './templates/'
 
 
 def encode_iris(arr_polar, arr_noise, minw_length, mult, sigma_f):
@@ -122,9 +120,6 @@ def matchingTemplate(template_extr, mask_extr, template_dir, threshold=0.38):
     """
     Matching the template of the image with the ones in the database
     """
-    if not isinstance(template_dir, str):
-        raise ValueError("template_dir must be a string representing a valid directory path.")
-
     # n# of accounts in the database
     n_files = len(filter(listdir(template_dir), '*.mat'))
     if n_files == 0:
@@ -164,39 +159,26 @@ def HammingDistance(template1, mask1, template2, mask2):
     """
     hd = np.nan
 
-    # Ensure inputs are boolean arrays
-    template1 = template1.astype(bool)
-    mask1 = mask1.astype(bool)
-    template2 = template2.astype(bool)
-    mask2 = mask2.astype(bool)
-
-    logging.debug("Starting Hamming distance calculation")
-
     # Shifting template left and right, use the lowest Hamming distance
     for shifts in range(-8, 9):
         template1s = shiftbits_ham(template1, shifts)
         mask1s = shiftbits_ham(mask1, shifts)
 
         mask = np.logical_or(mask1s, mask2)
-        nummaskbits = np.sum(mask)
+        nummaskbits = np.sum(mask == 1)
         totalbits = template1s.size - nummaskbits
 
         C = np.logical_xor(template1s, template2)
-        C = np.logical_and(C, ~mask)
-        bitsdiff = np.sum(C)
-
-        logging.debug(f"Shift: {shifts}, Total bits: {totalbits}, Bits diff: {bitsdiff}")
+        C = np.logical_and(C, np.logical_not(mask))
+        bitsdiff = np.sum(C == 1)
 
         if totalbits == 0:
-            continue
+            hd = np.nan
+        else:
+            hd1 = bitsdiff / totalbits
+            if hd1 < hd or np.isnan(hd):
+                hd = hd1
 
-        hd1 = bitsdiff / totalbits
-        logging.debug(f"Hamming distance for shift {shifts}: {hd1}")
-
-        if np.isnan(hd) or hd1 < hd:
-            hd = hd1
-
-    logging.debug(f"Final Hamming distance: {hd}")
     return hd
 
 
@@ -232,17 +214,9 @@ def matchingPool(file_temp_name, template_extr, mask_extr, template_dir):
     Perform matching session within a Pool of parallel computation
     """
     import os
-    import warnings
-
     data_template = sio.loadmat(
         os.path.join(template_dir, file_temp_name)
     )
-
-    # Ensure the required keys exist in the .mat file
-    if 'template' not in data_template or 'mask' not in data_template:
-        warnings.warn(f"Skipping {file_temp_name}: Missing 'template' or 'mask'")
-        return (file_temp_name, np.nan)
-
     template = data_template['template']
     mask = data_template['mask']
 

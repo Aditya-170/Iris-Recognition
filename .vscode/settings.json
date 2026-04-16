@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./iris_recoginition/utils"
+    ]
+}
